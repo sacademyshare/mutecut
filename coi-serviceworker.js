@@ -1,9 +1,9 @@
 // coi-serviceworker.js
-// GitHub Pages のようにヘッダをいじれない環境で
-// COOP/COEP を後付けして SharedArrayBuffer を有効化する Service Worker
+// GitHub Pages のようにヘッダーを触れない環境で
+// COOP/COEP を後付けするための Service Worker です。
 
 self.addEventListener('install', (event) => {
-  // すぐ有効になってほしいので
+  // すぐに新しい SW を有効化
   self.skipWaiting();
 });
 
@@ -14,11 +14,10 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
 
-  // 通常の fetch をベースに、レスポンスヘッダだけ差し替える
   event.respondWith((async () => {
     const res = await fetch(req);
 
-    // 一部の特殊レスポンスは素通しする（ブラウザ内部用など）
+    // ブラウザ内部用のレスポンスなどは素通し
     if (res.status === 0) {
       return res;
     }
