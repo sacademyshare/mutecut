@@ -5,8 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>無音区間オートカット（GitHub Pages / ffmpeg.wasm）</title>
 
-  <!-- ffmpeg.wasm（0.10系 / createFFmpeg API） -->
-  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js"></script>
+  <!-- ffmpeg.wasm 0.11.2 -->
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.2/dist/ffmpeg.min.js"></script>
+
+  <!-- COOP/COEP を Service Worker で付与（GitHub Pages 対策） -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./coi-serviceworker.js').then(
+          () => {
+            console.log('coi-serviceworker registered');
+          },
+          (err) => {
+            console.warn('coi-serviceworker registration failed:', err);
+          }
+        );
+      });
+    }
+  </script>
 
   <style>
     :root {
@@ -507,22 +523,6 @@
     }
   </style>
 </head>
-  <script>
-  // cross-origin isolation がまだで、Service Worker が使える環境なら登録
-  if (window.crossOriginIsolated !== true && 'serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./coi-serviceworker.js').then(
-        () => {
-          console.log('coi-serviceworker registered');
-        },
-        (err) => {
-          console.warn('coi-serviceworker registration failed:', err);
-        }
-      );
-    });
-  }
-</script>
-
 <body>
   <header>
     <h1>
@@ -586,9 +586,7 @@
         <h2 style="margin-top:10px;"><span class="step-tag">3</span> 解析結果</h2>
         <p class="desc">検出された「話している区間」だけをつないで書き出します。</p>
 
-        <div class="stats" id="statsArea">
-          <!-- JS で埋める -->
-        </div>
+        <div class="stats" id="statsArea"></div>
 
         <div id="segmentsContainer" class="segments-list">
           <div class="segments-empty">まだ解析が行われていません。</div>
@@ -678,7 +676,7 @@
     let ffmpeg = null;
     let ffmpegLoaded = false;
 
-    // ========== ログ出力ユーティリティ ==========
+    // ========== ログ出力 ==========
     function log(message) {
       const time = new Date().toISOString().split('T')[1].replace('Z', '');
       logArea.value += `[${time}] ${message}\n`;
@@ -696,31 +694,29 @@
 
     thresholdSlider.addEventListener('input', () => {
       updateSliderLabels();
-      if (audioBuffer) {
-        runSegmentationOnly();
-      }
+      if (audioBuffer) runSegmentationOnly();
     });
 
     minVoiceSlider.addEventListener('input', () => {
       updateSliderLabels();
-      if (audioBuffer) {
-        runSegmentationOnly();
-      }
+      if (audioBuffer) runSegmentationOnly();
     });
 
     paddingSlider.addEventListener('input', () => {
       updateSliderLabels();
-      if (audioBuffer) {
-        runSegmentationOnly();
-      }
+      if (audioBuffer) runSegmentationOnly();
     });
 
-    // ========== ffmpeg.wasm 初期化 ==========
+    // ========== ffmpeg.wasm 初期化（core-st 使用） ==========
     function initFFmpegInstance() {
       if (ffmpeg) return ffmpeg;
       const { createFFmpeg, fetchFile } = FFmpeg;
+
       ffmpeg = createFFmpeg({
         log: true,
+        // SharedArrayBuffer 不要なシングルスレッドコア
+        corePath: 'https://unpkg.com/@ffmpeg/core-st@0.11.1/dist/ffmpeg-core.js',
+        mainName: 'main',
         progress: (p) => {
           if (p && typeof p.ratio === 'number') {
             const ratio = Math.max(0, Math.min(1, p.ratio));
@@ -728,6 +724,7 @@
           }
         }
       });
+
       ffmpeg._fetchFile = fetchFile;
       return ffmpeg;
     }
@@ -744,7 +741,7 @@
         } catch (err) {
           console.error(err);
           log('ffmpeg-core のロードに失敗しました。');
-          exportStatus.textContent = 'ffmpeg-core のロードに失敗しました。ネットワーク環境や CORS 設定をご確認ください。';
+          exportStatus.textContent = 'ffmpeg-core のロードに失敗しました。ネットワーク環境をご確認ください。';
           throw err;
         }
       }
@@ -814,7 +811,7 @@
         log('AudioContext が利用できません。直接 ffmpeg.wasm にフォールバックします。');
       }
 
-      // 2. ffmpeg.wasm で mono 48kHz PCM を抽出して自前 AudioBuffer 生成
+      // 2. ffmpeg.wasm で mono 48kHz PCM を抽出
       analyzeStatus.textContent = 'ffmpeg で音声トラックを抽出中…';
       log('ffmpeg で mono 48kHz PCM を生成開始');
 
@@ -841,7 +838,7 @@
         const samples = data.byteLength / 4;
         const floatData = new Float32Array(samples);
         for (let i = 0; i < samples; i++) {
-          floatData[i] = dv.getFloat32(i * 4, true); // little-endian
+          floatData[i] = dv.getFloat32(i * 4, true);
         }
 
         const sampleRate = 48000;
@@ -878,7 +875,7 @@
       const duration = buffer.duration;
       const sampleRate = buffer.sampleRate;
       const channelData = buffer.getChannelData(0);
-      const windowDuration = 0.05;
+      const windowDuration = 0.05; // 50ms
       const windowSize = Math.floor(sampleRate * windowDuration);
       const totalWindows = Math.floor(channelData.length / windowSize);
 
