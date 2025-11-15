@@ -507,6 +507,22 @@
     }
   </style>
 </head>
+  <script>
+  // cross-origin isolation がまだで、Service Worker が使える環境なら登録
+  if (window.crossOriginIsolated !== true && 'serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./coi-serviceworker.js').then(
+        () => {
+          console.log('coi-serviceworker registered');
+        },
+        (err) => {
+          console.warn('coi-serviceworker registration failed:', err);
+        }
+      );
+    });
+  }
+</script>
+
 <body>
   <header>
     <h1>
