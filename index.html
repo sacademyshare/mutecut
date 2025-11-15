@@ -484,41 +484,48 @@
 
     /*** ファイル選択処理 ***/
     fileInput.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+  const file = e.target.files[0];
+  if (!file) return;
 
-      currentFile = file;
-      currentFileName = file.name;
-      silenceRanges = [];
-      keepSegments = [];
-      videoDuration = 0;
-      downloadArea.hidden = true;
-      downloadLink.href = '#';
+  currentFile = file;
+  currentFileName = file.name;
+  silenceRanges = [];
+  keepSegments = [];
+  videoDuration = 0;
+  downloadArea.hidden = true;
+  downloadLink.href = '#';
 
-      // プレビュー用 URL
-      const url = URL.createObjectURL(file);
-      previewVideo.src = url;
-      previewVideo.load();
+  // ★ ここでログをリセットして「ファイル受信」を表示
+  logArea.textContent = '';
+  log(`動画ファイルを受け取りました：${file.name}`, true);
 
-      // メタ情報
-      const sizeMB = file.size / (1024 * 1024);
-      metaName.textContent = file.name;
-      metaSize.textContent = `サイズ: ${sizeMB.toFixed(1)} MB`;
-      videoMeta.hidden = false;
-      segmentsArea.innerHTML = '動画メタデータの読込中…';
+  // プレビュー用 URL
+  const url = URL.createObjectURL(file);
+  previewVideo.src = url;
+  previewVideo.load();
 
-      // duration を取得
-      previewVideo.onloadedmetadata = () => {
-        videoDuration = previewVideo.duration || 0;
-        metaDuration.textContent = `長さ: ${formatTime(videoDuration)}`;
-        segmentsArea.innerHTML =
-          '動画の準備ができました。「無音を解析する」を押して処理を開始してください。';
-        analyzeBtn.disabled = false;
-        previewBtn.disabled = true;
-        exportBtn.disabled = true;
-        log(`動画を読み込みました：${file.name}（${sizeMB.toFixed(1)} MB, ${formatTime(videoDuration)}）`, true);
-      };
-    });
+  // メタ情報
+  const sizeMB = file.size / (1024 * 1024);
+  metaName.textContent = file.name;
+  metaSize.textContent = `サイズ: ${sizeMB.toFixed(1)} MB`;
+  videoMeta.hidden = false;
+  segmentsArea.innerHTML = '動画メタデータの読込中…';
+
+  // duration を取得
+  previewVideo.onloadedmetadata = () => {
+    videoDuration = previewVideo.duration || 0;
+    metaDuration.textContent = `長さ: ${formatTime(videoDuration)}`;
+    segmentsArea.innerHTML =
+      '動画の準備ができました。「無音を解析する」を押して処理を開始してください。';
+    analyzeBtn.disabled = false;
+    previewBtn.disabled = true;
+    exportBtn.disabled = true;
+
+    // ★ ここでもう一度ログ
+    log(`動画を読み込みました：${file.name}（${sizeMB.toFixed(1)} MB, ${formatTime(videoDuration)}）`, true);
+  };
+});
+
 
     /*** 無音解析 → keepセグメント計算 ***/
     const analyzeSilence = async () => {
